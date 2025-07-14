@@ -86,56 +86,61 @@ const NULL = 0
 // Initialize () for MH_STATUS WINAPI MH_Initialize(VOID)
 // Initialize the MinHook library. You must call this function EXACTLY ONCE at the beginning of your program.
 func Initialize() (err error) {
-	ret, _, _ := syscall.Syscall(uintptr(C.MH_Initialize), 0, 0, 0, 0)
+	ret, _, _ := syscall.SyscallN(uintptr(C.MH_Initialize))
 	return _Status(ret).ToError()
 }
 
 // Uninitialize () for MH_STATUS WINAPI MH_Uninitialize(VOID)
 // Uninitialize the MinHook library. You must call this function EXACTLY ONCE at the end of your program.
 func Uninitialize() (err error) {
-	ret, _, _ := syscall.Syscall(uintptr(C.MH_Uninitialize), 0, 0, 0, 0)
+	ret, _, _ := syscall.SyscallN(uintptr(C.MH_Uninitialize))
 	return _Status(ret).ToError()
 }
 
 // CreateHook () for MH_STATUS WINAPI MH_CreateHook(LPVOID pTarget, LPVOID pDetour, LPVOID *ppOriginal);
 // Creates a Hook for the specified target function, in disabled state.
 // Parameters:
-//   pTarget    [in]  A pointer to the target function, which will be
-//                    overridden by the detour function.
-//   pDetour    [in]  A pointer to the detour function, which will override
-//                    the target function.
-//   ppOriginal [out] A pointer to the trampoline function, which will be
-//                    used to call the original target function.
-//                    This parameter can be NULL.
+//
+//	pTarget    [in]  A pointer to the target function, which will be
+//	                 overridden by the detour function.
+//	pDetour    [in]  A pointer to the detour function, which will override
+//	                 the target function.
+//	ppOriginal [out] A pointer to the trampoline function, which will be
+//	                 used to call the original target function.
+//	                 This parameter can be NULL.
 func CreateHook(pTarget, pDetour, ppOriginal uintptr) (err error) {
-	ret, _, _ := syscall.Syscall(uintptr(C.MH_CreateHook), 3, pTarget, pDetour, ppOriginal)
+	ret, _, _ := syscall.SyscallN(uintptr(C.MH_CreateHook), pTarget, pDetour, ppOriginal)
 	return _Status(ret).ToError()
 }
 
 // CreateHookAPI () for MH_STATUS WINAPI MH_CreateHookApi(LPCWSTR pszModule, LPCSTR pszProcName, LPVOID pDetour, LPVOID *ppOriginal);
 // Creates a Hook for the specified API function, in disabled state.
 // Parameters:
-//   pszModule  [in]  A pointer to the loaded module name which contains the
-//                    target function.
-//   pszTarget  [in]  A pointer to the target function name, which will be
-//                    overridden by the detour function.
-//   pDetour    [in]  A pointer to the detour function, which will override
-//                    the target function.
-//   ppOriginal [out] A pointer to the trampoline function, which will be
-//                    used to call the original target function.
-//                    This parameter can be NULL.
+//
+//	pszModule  [in]  A pointer to the loaded module name which contains the
+//	                 target function.
+//	pszTarget  [in]  A pointer to the target function name, which will be
+//	                 overridden by the detour function.
+//	pDetour    [in]  A pointer to the detour function, which will override
+//	                 the target function.
+//	ppOriginal [out] A pointer to the trampoline function, which will be
+//	                 used to call the original target function.
+//	                 This parameter can be NULL.
+//
 // ------------------------------------------------------------------------
 // strModule: Module name in Go's string. Replace of pszModule.
 // strProcName: Procedure (target function) name in Go's string. Replace of pszTarget.
 func CreateHookAPI(strModule, strProcName string, pDetour, ppOriginal uintptr) (err error) {
-	ret, _, _ := syscall.Syscall6(
+	ptrModule, err := syscall.UTF16PtrFromString(strModule)
+	if err != nil {
+		return err
+	}
+	ret, _, _ := syscall.SyscallN(
 		uintptr(C.MH_CreateHookApi),
-		4,
-		uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr(strModule))),
+		uintptr(unsafe.Pointer(ptrModule)),
 		uintptr(unsafe.Pointer(C.CString(strProcName))),
 		pDetour,
 		ppOriginal,
-		0, 0,
 	)
 	return _Status(ret).ToError()
 }
@@ -143,31 +148,35 @@ func CreateHookAPI(strModule, strProcName string, pDetour, ppOriginal uintptr) (
 // CreateHookAPIEx () for MH_STATUS WINAPI MH_CreateHookApiEx(LPCWSTR pszModule, LPCSTR pszProcName, LPVOID pDetour, LPVOID *ppOriginal, LPVOID *ppTarget);
 // Creates a Hook for the specified API function, in disabled state.
 // Parameters:
-//   pszModule  [in]  A pointer to the loaded module name which contains the
-//                    target function.
-//   pszTarget  [in]  A pointer to the target function name, which will be
-//                    overridden by the detour function.
-//   pDetour    [in]  A pointer to the detour function, which will override
-//                    the target function.
-//   ppOriginal [out] A pointer to the trampoline function, which will be
-//                    used to call the original target function.
-//                    This parameter can be NULL.
-//   ppTarget   [out] A pointer to the target function, which will be used
-//                    with other functions.
-//                    This parameter can be NULL.
+//
+//	pszModule  [in]  A pointer to the loaded module name which contains the
+//	                 target function.
+//	pszTarget  [in]  A pointer to the target function name, which will be
+//	                 overridden by the detour function.
+//	pDetour    [in]  A pointer to the detour function, which will override
+//	                 the target function.
+//	ppOriginal [out] A pointer to the trampoline function, which will be
+//	                 used to call the original target function.
+//	                 This parameter can be NULL.
+//	ppTarget   [out] A pointer to the target function, which will be used
+//	                 with other functions.
+//	                 This parameter can be NULL.
+//
 // ------------------------------------------------------------------------
 // strModule: Module name in Go's string. Replace of pszModule.
 // strProcName: Procedure (target function) name in Go's string. Replace of pszTarget.
 func CreateHookAPIEx(strModule, strProcName string, pDetour, ppOriginal, ppTarget uintptr) (err error) {
-	ret, _, _ := syscall.Syscall6(
+	ptrModule, err := syscall.UTF16PtrFromString(strModule)
+	if err != nil {
+		return err
+	}
+	ret, _, _ := syscall.SyscallN(
 		uintptr(C.MH_CreateHookApiEx),
-		5,
-		uintptr(unsafe.Pointer(syscall.StringToUTF16Ptr(strModule))),
+		uintptr(unsafe.Pointer(ptrModule)),
 		uintptr(unsafe.Pointer(C.CString(strProcName))),
 		pDetour,
 		ppOriginal,
 		ppTarget,
-		0,
 	)
 	return _Status(ret).ToError()
 }
@@ -175,71 +184,80 @@ func CreateHookAPIEx(strModule, strProcName string, pDetour, ppOriginal, ppTarge
 // RemoveHook () for MH_STATUS WINAPI MH_RemoveHook(LPVOID pTarget);
 // Removes an already created hook.
 // Parameters:
-//   pTarget [in] A pointer to the target function.
+//
+//	pTarget [in] A pointer to the target function.
 func RemoveHook(pTarget uintptr) (err error) {
-	ret, _, _ := syscall.Syscall(uintptr(C.MH_RemoveHook), 1, pTarget, 0, 0)
+	ret, _, _ := syscall.SyscallN(uintptr(C.MH_RemoveHook), pTarget)
 	return _Status(ret).ToError()
 }
 
 // EnableHook () for MH_STATUS WINAPI MH_EnableHook(LPVOID pTarget);
 // Enables an already created hook.
 // Parameters:
-//   pTarget [in] A pointer to the target function.
-//                If this parameter is MH_ALL_HOOKS, all created hooks are
-//                enabled in one go.
+//
+//	pTarget [in] A pointer to the target function.
+//	             If this parameter is MH_ALL_HOOKS, all created hooks are
+//	             enabled in one go.
+//
 // ------------------------------------------------------------------------
 // gominhook.AllHooks is equivalent to MH_ALL_HOOKS.
 // gominhook.AllHooks can be used as an argument to this function to enable all created hooks.
 func EnableHook(pTarget uintptr) (err error) {
-	ret, _, _ := syscall.Syscall(uintptr(C.MH_EnableHook), 1, pTarget, 0, 0)
+	ret, _, _ := syscall.SyscallN(uintptr(C.MH_EnableHook), pTarget)
 	return _Status(ret).ToError()
 }
 
 // DisableHook () for MH_STATUS WINAPI MH_DisableHook(LPVOID pTarget);
 // Disables an already created hook.
 // Parameters:
-//   pTarget [in] A pointer to the target function.
-//                If this parameter is MH_ALL_HOOKS, all created hooks are
-//                disabled in one go.
+//
+//	pTarget [in] A pointer to the target function.
+//	             If this parameter is MH_ALL_HOOKS, all created hooks are
+//	             disabled in one go.
+//
 // ------------------------------------------------------------------------
 // gominhook.AllHooks is equivalent to MH_ALL_HOOKS.
 // gominhook.AllHooks can be used as an argument to this function to disable all created hooks.
 func DisableHook(pTarget uintptr) (err error) {
-	ret, _, _ := syscall.Syscall(uintptr(C.MH_DisableHook), 1, pTarget, 0, 0)
+	ret, _, _ := syscall.SyscallN(uintptr(C.MH_DisableHook), pTarget)
 	return _Status(ret).ToError()
 }
 
 // QueueEnableHook () for MH_STATUS WINAPI MH_QueueEnableHook(LPVOID pTarget);
 // Queues to enable an already created hook.
 // Parameters:
-//   pTarget [in] A pointer to the target function.
-//                If this parameter is MH_ALL_HOOKS, all created hooks are
-//                queued to be enabled.
+//
+//	pTarget [in] A pointer to the target function.
+//	             If this parameter is MH_ALL_HOOKS, all created hooks are
+//	             queued to be enabled.
+//
 // ------------------------------------------------------------------------
 // gominhook.AllHooks is equivalent to MH_ALL_HOOKS.
 // gominhook.AllHooks can be used as an argument to this function to queue all created hooks to be enabled.
 func QueueEnableHook(pTarget uintptr) (err error) {
-	ret, _, _ := syscall.Syscall(uintptr(C.MH_QueueEnableHook), 1, pTarget, 0, 0)
+	ret, _, _ := syscall.SyscallN(uintptr(C.MH_QueueEnableHook), pTarget)
 	return _Status(ret).ToError()
 }
 
 // QueueDisableHook () for MH_STATUS WINAPI MH_QueueDisableHook(LPVOID pTarget);
 // Queues to disable an already created hook.
 // Parameters:
-//   pTarget [in] A pointer to the target function.
-//                If this parameter is MH_ALL_HOOKS, all created hooks are
-//                queued to be disabled.
+//
+//	pTarget [in] A pointer to the target function.
+//	             If this parameter is MH_ALL_HOOKS, all created hooks are
+//	             queued to be disabled.
+//
 // ------------------------------------------------------------------------
 // gominhook.AllHooks is equivalent to MH_ALL_HOOKS.
 // gominhook.AllHooks can be used as an argument to this function to queue all created hooks to be disabled.
 func QueueDisableHook(pTarget uintptr) (err error) {
-	ret, _, _ := syscall.Syscall(uintptr(C.MH_QueueDisableHook), 1, pTarget, 0, 0)
+	ret, _, _ := syscall.SyscallN(uintptr(C.MH_QueueDisableHook), pTarget)
 	return _Status(ret).ToError()
 }
 
 // ApplyQueued () for MH_STATUS WINAPI MH_ApplyQueued(VOID);
 // Applies all queued changes in one go.
 func ApplyQueued() (err error) {
-	ret, _, _ := syscall.Syscall(uintptr(C.MH_ApplyQueued), 0, 0, 0, 0)
+	ret, _, _ := syscall.SyscallN(uintptr(C.MH_ApplyQueued))
 	return _Status(ret).ToError()
 }
